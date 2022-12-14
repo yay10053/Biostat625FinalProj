@@ -1,1 +1,16 @@
-# Biostat625FinalProj
+# Biostat625 Final Project
+## Author: Cheukying (Rosita) Szeto, Salina Moon, Xiaochun Shao
+## Title: Prevalence of Diabetes and Social Determinants: Longitudinal Analysis & Interactive Dashboard
+
+Our Project consists of analysis of two dataset. 
+Our primary dataset:
+
+> SocialFactor
+
+which concerning diabetes prevalence in relate to socaial determinants such as SVI, food insurity, and % of no health insurance. Our investigation includes initial files consolidation, a detailed exploratory analysis, Longitudinal Analysis using Linear Mixed Effect Model, and an Interactive Dashboard. 
+
+Our secondary dataset:
+
+> BioFactor
+
+which concerning diabetes rate in relate to biological determinants such as obesity and inactivity. We consolidate the files and created some animated visuals to investigate the relationship. 
