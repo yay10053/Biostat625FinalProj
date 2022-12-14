@@ -1,7 +1,6 @@
 library(shiny)
 library(shinythemes)
 library(plotly)
-
 library(maps)
 library(mapproj)
 
