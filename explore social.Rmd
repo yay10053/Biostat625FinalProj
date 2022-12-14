@@ -1,0 +1,220 @@
+---
+title: "BIOSTAT 625 Final Project"
+author: "Salina Moon"
+output:
+  pdf_document: default
+fontsize: 12pt
+geometry: margin=1in
+---
+# Exploratory Data Analysis  
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(RColorBrewer)
+
+data.imp = read.csv("merge_df.csv")
+```
+
+### First look at the data
+```{r}
+freq.stateyr = data.frame(unclass(table(data.nomiss$State,
+                                        data.nomiss$Year)))
+dim(freq.stateyr)
+```
+There are 51 states, including DC, and 3 time points: 2014, 2016, and 2018.
+
+### Missingness
+```{r}
+# extract states with different numbers of counties over time
+freq.stateyr %>% 
+  mutate(same = (X2014==X2016)*(X2014==X2018)) %>%
+  filter(same == 0)
+```
+The number of counties reporting these health information in each state only differs by 1, and in only 3 states. 
+```{r}
+data.nomiss = na.omit(data.imp)
+
+c(nrow(data.imp), nrow(data.nomiss))
+```
+We only lose 8 observations out of over 9,000 if we only look at complete cases. 
+
+### Change over time
+#### State level
+```{r}
+# state average and dispersion
+avg.state = data.nomiss %>%
+  group_by(State) %>%
+  summarise(Counties = n(),
+            Diab = mean(Diagnosed.Diabetes.Percentage),
+            SVI = mean(Overall.SVI),
+            Food = mean(Food.Insecurity),
+            Ins = mean(No.Health.Insurance),
+            sdDiab = sd(Diagnosed.Diabetes.Percentage),
+            sdSVI = sd(Overall.SVI),
+            sdFood = sd(Food.Insecurity),
+            sdIns = sd(No.Health.Insurance)) %>%
+  mutate(Counties = round(Counties / 3)) %>%
+  mutate(cvDiab = sdDiab / Diab) %>%
+  mutate(cvSVI = sdSVI / SVI) %>%
+  mutate(cvFood = sdFood / Food) %>%
+  mutate(cvIns = sdIns / Ins) 
+
+write.csv(avg.state, "bios625_avgstate.csv", row.names = FALSE)
+```
+
+#### County level
+```{r}
+# mean over all three time points
+avg.county = data.nomiss %>%
+  group_by(County_FIPS, State) %>%
+  summarise(Diab = mean(Diagnosed.Diabetes.Percentage),
+            SVI = mean(Overall.SVI),
+            Food = mean(Food.Insecurity),
+            Ins = mean(No.Health.Insurance),
+            sdDiab = sd(Diagnosed.Diabetes.Percentage),
+            sdSVI = sd(Overall.SVI),
+            sdFood = sd(Food.Insecurity),
+            sdIns = sd(No.Health.Insurance))
+
+head(avg.county)
+```
+It is important to note that Food Insecurity and No Health Insurance have SD of 0 for all counties, meaning these two variables remain constant over time. Only Diabetes and SVI change between time points. 
+
+Let's look at how SVI changes over time in each state. 
+```{r}
+yr.state = data.nomiss %>%
+  group_by(State, Year) %>%
+  summarise(nCounty = n(),
+            Diab = mean(Diagnosed.Diabetes.Percentage),
+            SVI = mean(Overall.SVI),
+            Food = mean(Food.Insecurity),
+            Ins = mean(No.Health.Insurance))
+
+write.csv(yr.state, "bios625_state_byyear.csv", row.names = FALSE)
+
+yr.state = yr.state[order(yr.state$State),]
+yr.state = yr.state[order(yr.state$Year),]
+svi.state.2014 = rep(yr.state[which(yr.state$Year==2014),]$SVI,3)
+yr.state$deltaSVI = yr.state$SVI - svi.state.2014
+
+ggplot(yr.state,
+       aes(x = Year,
+           y = deltaSVI,
+           group = State)) +
+  geom_line(color = "#FCAE91") +
+  geom_point(aes(size = nCounty),
+             color = "#DE2D26") +
+  scale_x_continuous(breaks = c(2014, 2016, 2018)) +
+  scale_y_continuous(breaks = seq(-0.06, 0.06, 0.02)) +
+  scale_size_continuous(range = c(0.5, 3)) +
+  labs(y = "Change in SVI from Baseline",
+       size = "Counties") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1, "inch"))
+
+ggsave("bios625_time_svi.png", height=3, width=4.5)
+```
+
+### Correlation of Diabetes and Covariates
+#### Diabetes vs. SVI
+```{r}
+lm(Diab ~ SVI, data = avg.county)
+cor.test(avg.county$Diab, avg.county$SVI)
+
+plot.diab.svi = ggplot(data.avgyr,
+       aes(x = SVI,
+           y = Diab)) +
+  geom_point(color = "#FCAE91",
+             size = 1) +
+  geom_abline(slope = 2.748,
+              intercept = 7.139,
+              color = "#DE2D26",
+              linewidth = 1) +
+  geom_text(x = 0.5,
+            y = 17,
+            label = "R = 0.52, p<1E-15") +
+  labs(y = "Diabetes (% Diagnosed)") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1, "inch"))
+```
+
+#### Diabetes vs. Food Security
+```{r}
+lm(Diab ~ Food, data = data.avgyr)
+cor.test(data.avgyr$Diab, data.avgyr$Food)
+
+plot.diab.food = ggplot(data.avgyr,
+       aes(x = Food,
+           y = Diab)) +
+  geom_point(color = "#BAE4B3",
+             size = 1) +
+  geom_abline(slope = 0.1714,
+              intercept = 6.2675,
+              color = "#31A354",
+              linewidth = 1) +
+  geom_text(x = 16.5,
+            y = 17,
+            label = "R = 0.42, p<1E-15") +
+  labs(y = "Diabetes (% diagnosed)",
+       x = "Food Insecurity") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1, "inch"),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+```
+
+#### Diabetes vs. No Health Insurance
+```{r}
+lm(Diab ~ Ins, data = data.avgyr)
+cor.test(data.avgyr$Diab, data.avgyr$Ins)
+
+plot.diab.ins = ggplot(data.avgyr,
+       aes(x = Ins,
+           y = Diab)) +
+  geom_point(color = "#BDD7E7",
+             size = 1) +
+  geom_abline(slope = 0.03834,
+              intercept = 8.14343,
+              color = "#3182BD",
+              linewidth = 1) +
+  geom_text(x = 24,
+            y = 17,
+            label = "R = 0.13, p<1E-12") +
+  labs(y = "Diabetes (% diagnosed)",
+       x = "No Health Insurance") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1, "inch"),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+ggsave("bios625_dot_diab_3var.png",
+       grid.arrange(plot.diab.svi, plot.diab.food, plot.diab.ins,
+                    ncol = 3,
+                    widths = c(7,6,6)),
+       height=3.5, width=5.72)
+```
+
+### National average
+```{r}
+data.nationyr = data.nomiss %>%
+  group_by(Year) %>%
+  summarise(Diab = mean(Diagnosed.Diabetes.Percentage),
+            SVI = mean(Overall.SVI),
+            Food = mean(Food.Insecurity),
+            Ins = mean(No.Health.Insurance),
+            sd.Diab = sd(Diagnosed.Diabetes.Percentage),
+            sd.SVI = sd(Overall.SVI),
+            sd.Food = sd(Food.Insecurity),
+            sd.Ins = sd(No.Health.Insurance))
+```

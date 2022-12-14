@@ -1,0 +1,182 @@
+---
+title: "BIOSTAT 625 Final Project"
+author: "Salina Moon"
+output:
+  pdf_document: default
+fontsize: 12pt
+geometry: margin=1in
+---
+# Exploratory Data Analysis  
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(gridExtra)
+library(RColorBrewer)
+
+data.imp = read.csv("merged_biofactor.csv")
+```
+
+### Missingness
+```{r}
+miss.inact = data.imp[is.na(data.imp$inactive),]
+table(miss.inact$State)
+```
+There are missing data from AK, NJ, PR, VA. Let's evaluate the magnitude of missingness. 
+```{r}
+# subset Puerto Rico
+state.pr = data.imp %>% filter(State == "Puerto Rico")
+
+# count missingness
+apply(state.pr, 2, function(x) sum(is.na(x))) / nrow(state.pr)
+```
+All covariate data are missing for Puerto Rico, so this state will be excluded moving forward. 
+
+```{r}
+# subset Alaska
+state.ak = data.imp %>% filter(State == "Alaska")
+
+# count missingness
+state.ak %>%
+  group_by(Year) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  filter(diabetes != 0)
+
+state.ak %>%
+  group_by(County_FIPS) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  filter(diabetes != 0)
+```
+58 (11%) of observations from Alaska are missing. Missingness is consistent across the years, in the same 8 counties. 
+```{r}
+# subset New Jersey
+state.nj = data.imp %>% filter(State == "New Jersey")
+
+# count missingness
+state.nj %>%
+  group_by(Year) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  filter(diabetes != 0)
+
+state.nj %>%
+  group_by(County_FIPS) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  filter(diabetes != 0)
+
+# number of counties
+length(unique(state.nj$County_FIPS))
+```
+All 21 missing observations occurred in 2019, from all 21 counties in New Jersey. 
+```{r}
+# subset Virginia
+state.va = data.imp %>% filter(State == "Virginia")
+
+# count missingness
+state.va %>%
+  group_by(Year) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  filter(diabetes != 0)
+
+state.va %>%
+  group_by(County_FIPS) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  filter(diabetes != 0)
+```
+Missingness in Virginia is fully accounted for from only one county between 2013 to 2019.
+```{r}
+data.nomiss = na.omit(data.imp)
+```
+
+### Summary statistics
+```{r}
+# distribution
+hist(data.nomiss$inactive)
+hist(data.nomiss$diabetes)
+hist(data.nomiss$obesity)
+```
+All three variables approximate normal distributions. Diabetes can be appropriately modeled with linear regression, and inactivity and obesity do not need to be transformed. 
+
+### Mean change over time
+```{r}
+# country-wide mean change over time
+avg.country = data.nomiss %>%
+  group_by(Year) %>%
+  summarise(avginact = mean(inactive),
+            avgdiab = mean(diabetes),
+            avgobes = mean(obesity),
+            sdinact = sd(inactive),
+            sddiab = sd(diabetes),
+            sdobes = sd(obesity)) %>%
+  mutate(CVinact = sdinact / avginact) %>%
+  mutate(CVdiab = sddiab / avgdiab) %>%
+  mutate(CVobes = sdobes / avgobes)
+
+write.csv(avg.country, "bios625_country.csv")
+
+# convert to long format
+avg.country.long = rbind(
+  avg.country %>% 
+    mutate(scaleinact = avginact / 2.5) %>% 
+    select(Year, USMean = scaleinact) %>% 
+    mutate(Variable = "Inactivity"),
+  avg.country %>% 
+    select(Year, USMean = avgdiab) %>% 
+    mutate(Variable = "Diabetes"),
+  avg.country %>% 
+    mutate(scaleobes = avgobes / 2.5) %>% 
+    select(Year, USMean = scaleobes) %>% 
+    mutate(Variable = "Obesity")
+)
+
+# 3 variables vs Year
+ggplot(data = avg.country.long,
+       aes(x = Year,
+           y = USMean,
+           color = Variable)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(2004, 2019, 5)) +
+  scale_y_continuous(name = "Diabetes (%)",
+                     sec.axis = sec_axis(trans = ~.*2.5, 
+                                         name = "Inactivity or Obesity (%)",
+                                         breaks = seq(18, 29, 3))) +
+  labs(color = "") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1, "inch"))
+
+ggsave("bios625_time_3var.png", height=4, width=6)
+```
+
+```{r}
+# state-wide mean over time
+avg.state = data.nomiss %>%
+  group_by(State, Year) %>%
+  summarise(avginact = mean(inactive),
+            avgdiab = mean(diabetes),
+            avgobes = mean(obesity))
+
+# Diabetes vs Year
+ggplot(data = avg.state,
+       aes(x = Year,
+           y = avgdiab,
+           group = State)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(2004, 2019, 5)) +
+  scale_y_continuous(breaks = seq(5, 13, 2)) +
+  labs(y = "Prevalence of Diabetes (%)") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks.length = unit(0.1, "inch"))
+
+ggsave("bios625_time_state_var.png", height=4, width=6)
+```
+
+### Individual change over time
+```{r}
+
+```
+
