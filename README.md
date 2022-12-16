@@ -32,6 +32,8 @@ The extended code is uploaded on this repository in sections:
 ..* explore social.Rmd
 3. Data Modeling
 ..* model.Rmd
+4. Interactive Dashboard
+..* rshiny.R
 
 > BioFactor
 
@@ -42,3 +44,11 @@ The extended code is uploaded on this repository in sections:
 ..* explore bio.Rmd
 3. Data Modeling
 ..* model.Rmd
+4. Interactive Dashboard
+..* rshiny.R
+
+## Author Contributions
+
+Cheukying (Rosita) Szeto contributed to data collection, processing, and merging, interactive dashboard, and writing of the report. 
+Salina Moon contributed to exploratory data analysis, data visualization, and writing of the report. 
+Xiaochun Shao contributed to linear mixed model analysis and diagnosis and writing of the report. 
