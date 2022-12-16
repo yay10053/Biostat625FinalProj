@@ -14,3 +14,31 @@ Our secondary dataset:
 > BioFactor
 
 which concerning diabetes rate in relate to biological determinants such as obesity and inactivity. We consolidate the files and created some animated visuals to investigate the relationship. 
+
+## Final Report
+
+The final report summarizing our methods and results can be found in this repository, "Final Report.pdf."
+
+## Full Code
+
+The extended code is uploaded on this repository in sections:
+
+> SocialFactor
+
+1. Data Processing
+..* Date_Processing.R
+2. Exploratory Analysis
+..* Exploratory---Social.html
+..* explore social.Rmd
+3. Data Modeling
+..* model.Rmd
+
+> BioFactor
+
+1. Data Processing
+..* Data_Merge.R
+2. Exploratory Analysis
+..* Exploratory---Bio.html
+..* explore bio.Rmd
+3. Data Modeling
+..* model.Rmd
