@@ -42,10 +42,11 @@ The extended code is uploaded on this repository in sections:
 2. Exploratory Analysis
 ..* Exploratory---Bio.html
 ..* explore bio.Rmd
-3. Data Modeling
+3. Interactive gg animated plot
+..* External link: https://rpubs.com/cszeto/984619
+4. Data Modeling
 ..* model.Rmd
-4. Interactive Dashboard
-..* rshiny.R
+
 
 ## Author Contributions
 
