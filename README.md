@@ -1,6 +1,6 @@
 # Biostat625 Final Project
 ## Author: Cheukying (Rosita) Szeto, Salina Moon, Xiaochun Shao
-## Title: Prevalence of Diabetes and Social Determinants: Longitudinal Analysis & Interactive Dashboard
+## Title: Prevalence of Diabetes and Risk Factors: Longitudinal Analysis & Interactive Dashboard
 
 Our Project consists of analysis of two dataset. 
 Our primary dataset:
