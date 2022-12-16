@@ -1,0 +1,84 @@
+---
+title: '625'
+author: "Modeling"
+date: '2022-12-11'
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE)
+library(nlme)
+library(dplyr)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(knitr)
+Df<- read.csv("merge_df.csv")
+colSums(is.na(Df)== TRUE)  #check missing data number here, as we can directly noticed it is not a big number.
+DF <- Df[rowSums(is.na(Df)) == 0, ] 
+new_Df <- read.csv("merged_biofactor.csv")
+colSums(is.na(new_Df)== TRUE)/nrow(new_Df)  #check proportionher for missing data which is still not a big proportion and are drop out here
+new_DF <- new_Df[rowSums(is.na(new_Df)) == 0, ]
+```
+# Model
+## First stage model
+In our first stage model, to detect the effect of social determinants on the diagnosed diabetes percentage, we construct a linear mixed model including Year, Overall.SVI, Food.Insecurity, No.Health.Insurance and all the interaction term with Year. For random effect, we included random slope, term of Overall.SVI, as we found high subject deviance adjusted by Year in our exploratory analysis, and the subject unit here is State.Based on this full model, we did stepwise backwards selection with threshold 0.1 and 0.05 for random and fixed effect terms. 
+```{r Modeling Process, message=FALSE, warning=FALSE, paged.print=FALSE,results=FALSE}
+DF$id <- as.numeric(as.factor(DF$State))
+DF$id2 <- as.numeric(as.factor(DF$County))
+DF$Year <-as.numeric( as.factor(DF$Year))
+##stepwise backward selection in this model
+m1<- lmer(Diagnosed.Diabetes.Percentage ~Year + Overall.SVI + Food.Insecurity + No.Health.Insurance + Year:Overall.SVI + Food.Insecurity:Year + No.Health.Insurance:Year+(Overall.SVI |id),data = DF) 
+Step_dta<-step(m1)
+final <- get_model(Step_dta)
+
+m3 <- lmer(Diagnosed.Diabetes.Percentage ~ Year + Overall.SVI + Food.Insecurity + No.Health.Insurance + Year:Overall.SVI + Food.Insecurity:Year + No.Health.Insurance:Year+(Overall.SVI |id2),data = DF)
+Step_dta2 <- step(m3)
+m4 <- lmer(Diagnosed.Diabetes.Percentage ~ Year + Overall.SVI + Food.Insecurity +  
+    No.Health.Insurance + (Overall.SVI | id2) + Year:Overall.SVI,data = DF,REML = FALSE)
+#AIC(lmer(Diagnosed.Diabetes.Percentage ~ Year + Overall.SVI + Food.Insecurity + No.Health.Insurance + Year:Overall.SVI + Food.Insecurity:Year + No.Health.Insurance:Year+(Overall.SVI |id),data = DF,REML = FALSE)) ##By State
+#AIC(m4)  ##By County
+##Here we found by State is a better choice
+```
+
+After we compared AIC of the models by different grouping variables, County and State, our first final model is resulted to be by State and is shown as follow. $$E[D_i|b_i]=(\beta_0+b_0)+\beta_1Year_i+(\beta_2+b_1)SVI_i+\beta_3FI_i+\beta_4NHI_i+\beta_5Year_i*SVI$$
+From R output below, the variance between States is 1.74, and variance of error is 1.44 < 1.74, it implies high variability between States for the percentage of diabetes. All of the point estimates for the remaining terms are significant at level of 0.05, and only No Health Insurance index negatively associated with Diabetes rate whose effect magnitude is not significant(<0.05). The fixed effect of Year is 0.11, and each increase in year is significantly associated with 0.11 increase in percentage of diabetes on average adjusting for other variables. Similarly, we found every unit change in SVI being significantly associated with 2.51 increase in percentage of diabetes,adjusting for all other variables. Similar interpretations for Food Insecurity and interaction term between Year and SVI, while every unit increase of FI and interaction terms correspond to 1.90 and 1.74 increase in diabetes rate when they are adjusting for all other terms.
+```{r Model 1}
+summary(final)
+```
+
+# Second stage model
+We recollect data from 2004 to 2019 to see the relationship between diabetes percentage and risk factor including physical inactive and obesity. As there will occur singularity problem adding random slope here, to avoid overfitting and convergence problem, we only included random intercept this time. Compare the model by State to by County and AIC shows model by County performs better. We still used backwards selection and no variable should be removed, and here is our second final model:
+$$E[D_i|b_i]=(\beta_0+b_0)+\beta_1Year_i+\beta_2Inactive_+\beta_3obesity_i+\beta_4Year_i*Inactive+\beta_5Year_i*Obesity_i$$
+
+```{r message=FALSE, warning=FALSE,results=FALSE}
+new_DF$Year <- as.numeric(factor(new_DF$Year))
+new_DF$id <- as.numeric(factor(new_DF$State))
+new_DF$id2 <- as.numeric(factor(new_DF$County))
+m5 <- lmer(diabetes ~ Year + inactive + obesity + Year:inactive + Year:obesity + (1|id),data = new_DF )
+step_new <- step(m5)
+final2 <- get_model(step_new)
+m6 <- lmer(diabetes ~ Year + inactive + obesity + Year:inactive + Year:obesity + (1|id2) ,data = new_DF )
+step_new <- step(m6)
+final3 <- get_model(step_new)
+AIC(lmer(diabetes ~ Year + inactive + obesity + Year:inactive + Year:obesity + (1|id) ,data = new_DF , REML = FALSE))
+AIC(lmer(diabetes ~ Year + inactive + obesity + Year:inactive + Year:obesity + (1|id2) ,data = new_DF ,REML = FALSE))
+```
+
+Here is R output of our second stage model. Random variance is 0.9257(<1), which implies relatively low between subject variability. All the point estimates from variables of interest or interaction term are significant. Specifically, one year increase is significantly associated with 0.129 increase in diabetes percentage across the whole population adjusting for the all other variables. And one percent increase in physical inactive and obesity are respectively associated with 0.062 and 0.12 increase in diagnosed diabetes percentage on average adjusting for all other variables. For the interaction terms, one unit increase of Year is ,on average ,significantly associated with 0.008 increase in effect of inactive term on the outcome, adjusting for other variables. Similary, the Year increase is significantly associated with 0.005 decline in effect of obesity rate on average on the outcome of interest. 
+```{r}
+summary(final3)
+```
+
+In conclusion, for every point estimate, the magnitudes of the fixed effect over the diagnosed diabetes are almost not observable while they are statistically significant(at significant level of 5%). ??(I am not sure about the cutoff for the shrinkage degree, and if there is not standard answer, we can delete this one )The shrinkage degree of this model looks good as we found the variability for the random effect is smaller than variance of error. 
+
+The following are the model diagnosis plots for both of our models. Constant variance and residual normality are checked for two models in sequence, both of them are not violated in these models.
+```{r message=FALSE, warning=FALSE}
+library(car)
+plot(final, resid(.)~fitted(.),xlab = "fitted value",ylab = "residual value")
+qqnorm(resid(final))
+plot(final3,resid(.)~fitted(.),xlab = "fitted value", ylab = "residual value")
+qqnorm(resid(final3))
+```
+
+
